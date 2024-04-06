@@ -1,8 +1,10 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+#[cfg(target_arch = "x86_64")]
 use crate::CodecError;
 
+#[cfg(target_arch = "x86_64")]
 use super::simple;
 
 // Rust implementation of AVX2 fastbase64:
@@ -37,6 +39,7 @@ use super::simple;
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#[cfg(target_arch = "x86_64")]
 unsafe fn enc_reshuffle(input: __m256i) -> __m256i {
     // translation from SSE into AVX2 of procedure
     // https://github.com/WojciechMula/base64simd/blob/master/encode/unpack_bigendian.cpp
@@ -57,6 +60,7 @@ unsafe fn enc_reshuffle(input: __m256i) -> __m256i {
     _mm256_or_si256(t1, t3)
 }
 
+#[cfg(target_arch = "x86_64")]
 unsafe fn enc_translate(input: __m256i) -> __m256i {
     let lut: __m256i = _mm256_setr_epi8(
         65, 71, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -19, -16, 0, 0, 65, 71, -4, -4, -4, -4, -4,
@@ -69,18 +73,11 @@ unsafe fn enc_translate(input: __m256i) -> __m256i {
     _mm256_add_epi8(input, _mm256_shuffle_epi8(lut, indices))
 }
 
-pub fn encode_with_fallback(dest: &mut [u8], str: &[u8]) -> usize {
-    if is_x86_feature_detected!("avx2") {
-        unsafe { encode(dest, str) }
-    } else {
-        simple::encode(str, dest)
-    }
-}
-
 /// Encode a slice of bytes into base64 using avx2 instructions
 ///
 /// # Safety
 /// - Must only be executed on avx2 enabled cpus
+#[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 pub unsafe fn encode(dest: &mut [u8], str: &[u8]) -> usize {
     let mut str_offset: isize = 0;
@@ -134,6 +131,7 @@ pub unsafe fn encode(dest: &mut [u8], str: &[u8]) -> usize {
     dest_offset as usize
 }
 
+#[cfg(target_arch = "x86_64")]
 unsafe fn dec_reshuffle(input: __m256i) -> __m256i {
     // inlined procedure pack_madd from https://github.com/WojciechMula/base64simd/blob/master/decode/pack.avx2.cpp
     // The only difference is that elements are reversed,
@@ -155,18 +153,11 @@ unsafe fn dec_reshuffle(input: __m256i) -> __m256i {
     _mm256_permutevar8x32_epi32(out, _mm256_setr_epi32(0, 1, 2, 4, 5, 6, -1, -1))
 }
 
-pub fn decode_with_fallback(dest: &mut [u8], str: &[u8]) -> Result<usize, CodecError> {
-    if is_x86_feature_detected!("avx2") {
-        unsafe { decode(dest, str) }
-    } else {
-        simple::decode(str, dest)
-    }
-}
-
 /// Decode a slice of bytes into base64 using avx2 instructions
 ///
 /// # Safety
 /// - Must only be executed on avx2 enabled cpus
+#[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 pub unsafe fn decode(out: &mut [u8], src: &[u8]) -> Result<usize, CodecError> {
     let mut src_i: isize = 0;

@@ -33,9 +33,19 @@ pub fn decode_len(input_len: usize) -> usize {
 }
 
 impl EncodeOptions {
+    fn encode_with_fallback(&self, output: &mut [u8], input: &[u8]) -> usize {
+        if std::env::consts::ARCH == "x86_64" {
+            #[cfg(target_arch = "x86_64")]
+            if is_x86_feature_detected!("avx2") {
+                return avx2::encode(output, input);
+            }
+        }
+        simple::encode(input, output)
+    }
+
     pub fn encode(self, input: &[u8]) -> String {
         let mut output = vec![0u8; encode_len(input.len())];
-        avx2::encode_with_fallback(&mut output, input);
+        self.encode_with_fallback(&mut output, input);
         unsafe { String::from_utf8_unchecked(output) }
     }
 
@@ -46,7 +56,7 @@ impl EncodeOptions {
                 encode_len(input.len()),
             ))
         } else {
-            Ok(avx2::encode_with_fallback(output, input))
+            Ok(self.encode_with_fallback(output, input))
         }
     }
 }
@@ -55,9 +65,19 @@ impl EncodeOptions {
 pub struct DecodeOptions {}
 
 impl DecodeOptions {
+    fn decode_with_fallback(&self, output: &mut [u8], input: &[u8]) -> Result<usize, CodecError> {
+        if std::env::consts::ARCH == "x86_64" {
+            #[cfg(target_arch = "x86_64")]
+            if is_x86_feature_detected!("avx2") {
+                return avx2::decode(output, input);
+            }
+        }
+        simple::decode(input, output)
+    }
+
     pub fn decode(self, input: &[u8]) -> Result<Vec<u8>, CodecError> {
         let mut output = vec![0u8; decode_len(input.len())];
-        let decode_len = avx2::decode_with_fallback(&mut output, &input)?;
+        let decode_len = self.decode_with_fallback(&mut output, input)?;
         output.truncate(decode_len);
         Ok(output)
     }
@@ -69,7 +89,7 @@ impl DecodeOptions {
                 decode_len(input.len()),
             ))
         } else {
-            avx2::decode_with_fallback(output, input)
+            self.decode_with_fallback(output, input)
         }
     }
 }
